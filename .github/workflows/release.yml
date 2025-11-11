@@ -1,0 +1,22 @@
+on:
+  push:
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo apt update
+      - run: sudo apt -y install clang
+      - uses: actions/checkout@v5
+      - run: >
+          c++ protoc-gen-kts.cc
+          -lprotobuf
+          -lprotoc
+          -labsl_hash
+          -labsl_raw_hash_set
+          -labsl_log_internal_check_op
+          -labsl_log_internal_message
+          -labsl_raw_logging_internal
+      - uses: actions/create-release@v1
+      - uses: actions/upload-release-asset@v1
+        with:
+          asset_path: protoc-gen-kts
