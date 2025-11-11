@@ -4,7 +4,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - run: sudo apt -y install clang libprotobuf-dev libprotoc-dev
+      - run: sudo apt -y install gcc libprotobuf-dev libprotoc-dev
       - uses: actions/checkout@v5
       - run: >
           c++ protoc-gen-kts.cc
