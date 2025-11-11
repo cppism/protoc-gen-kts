@@ -4,8 +4,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - run: sudo apt update
-      - run: sudo apt -y install clang
+      - run: sudo apt -y install clang protobuf
       - uses: actions/checkout@v5
       - run: >
           c++ protoc-gen-kts.cc
