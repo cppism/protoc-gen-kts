@@ -61,8 +61,9 @@ class KtsCodeGenerator : public CodeGenerator {
             const FieldDescriptor *fieldDescriptor(descriptor->field(i));
             if (const OneofDescriptor *oneOfDescriptor(fieldDescriptor->containing_oneof()); oneOfDescriptor) {
                 printer.Print(
-                    "@ProtoOneOf val $name$: $name$OneOf = $name$OneOf.$field$(),\n",
-                    "name", oneOfDescriptor->name(), "field", fieldDescriptor->camelcase_name()
+                    "@ProtoOneOf val $name$: $className$ = $className$.$field$(),\n",
+                    "name", oneOfDescriptor->name(), "className", getOneOfName(oneOfDescriptor->name()),
+                    "field", toPascalCase(fieldDescriptor->camelcase_name())
                 );
                 oneOfDescriptors.push_back(oneOfDescriptor);
                 i += oneOfDescriptor->field_count() - 1;
@@ -74,12 +75,16 @@ class KtsCodeGenerator : public CodeGenerator {
 
         printer.Print(") {\n");
         printer.Indent();
-        for (const OneofDescriptor *oneOfDescriptor: oneOfDescriptors)
-            print(printer, oneOfDescriptor);
         for (int i(0); i < descriptor->enum_type_count(); ++i)
             print(printer, descriptor->enum_type(i));
         for (int i(0); i < descriptor->nested_type_count(); ++i)
             print(printer, descriptor->nested_type(i));
+        for (int i(0); i < descriptor->field_count(); ++i) {
+            if (const OneofDescriptor *oneOfDescriptor(descriptor->field(i)->containing_oneof()); oneOfDescriptor) {
+                print(printer, oneOfDescriptor);
+                i += oneOfDescriptor->field_count() - 1;
+            }
+        }
         printer.Outdent();
         printer.Print("}\n");
     }
@@ -106,23 +111,28 @@ class KtsCodeGenerator : public CodeGenerator {
     }
 
     static void print(Printer &printer, const OneofDescriptor *descriptor) {
-        printer.Print("@Serializable sealed interface $name$OneOf {\n", "name", descriptor->name());
+        const std::string typeName(getOneOfName(descriptor->name()));
+        printer.Print("@Serializable sealed interface $name$ {\n", "name", typeName);
         printer.Indent();
         for (int i(0); i < descriptor->field_count(); ++i) {
             const FieldDescriptor *fieldDescriptor(descriptor->field(i));
             printer.Print("@Serializable data class $name$ (\n", "name",
-                          fieldDescriptor->camelcase_name());
+                          toPascalCase(fieldDescriptor->camelcase_name()));
             printer.Indent();
-            print(printer, fieldDescriptor);
+            print(printer, fieldDescriptor, "value");
             printer.Outdent();
-            printer.Print(") : $name$OneOf\n", "name", descriptor->name());
+            printer.Print(") : $name$\n", "name", typeName);
         }
         printer.Outdent();
         printer.Print("}\n");
     }
 
     static void print(Printer &printer, const FieldDescriptor *descriptor) {
-        printer.Print("@ProtoNumber($number$) val $name$: ", "name", descriptor->camelcase_name(), "number",
+        print(printer, descriptor, descriptor->camelcase_name());
+    }
+
+    static void print(Printer &printer, const FieldDescriptor *descriptor, const std::string_view fieldName) {
+        printer.Print("@ProtoNumber($number$) val $name$: ", "name", fieldName, "number",
                       std::to_string(descriptor->number()));
 
         printType(printer, descriptor);
@@ -183,6 +193,32 @@ class KtsCodeGenerator : public CodeGenerator {
             default:
                 throw std::runtime_error("Field type " + std::to_string(descriptor->type()));
         }
+    }
+
+    static std::string getOneOfName(const std::string_view &value) {
+        return toPascalCase(value) + "OneOf";
+    }
+
+    static std::string toPascalCase(const std::string_view &value) {
+        if (value.find('_') == std::string_view::npos) {
+            std::string result(value);
+            result[0] = std::toupper(result[0]);
+            return result;
+        }
+        std::string result;
+        result.reserve(value.size());
+        bool capitalize = true;
+        for (char c: value) {
+            if (c == '_') {
+                capitalize = true;
+            } else if (capitalize) {
+                result.push_back(std::toupper(c));
+                capitalize = false;
+            } else {
+                result.push_back(c);
+            }
+        }
+        return result;
     }
 
     [[nodiscard]]
