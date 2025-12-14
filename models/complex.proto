@@ -1,0 +1,15 @@
+edition = "2024";
+package kts.complex;
+
+enum Enumeration {
+  UNSPECIFIED = 0;
+  VALUE_ONE = 1;
+  VALUE_TWO = 2;
+}
+
+message Message {
+  oneof message {
+    string plain_text = 1;
+    bytes encoded = 2;
+  }
+}
