@@ -1,0 +1,144 @@
+plugins {
+    id "cpp-application"
+    id "maven-publish"
+    id "org.jreleaser" version "1.21.0"
+}
+
+def stagingDir = layout.buildDirectory.dir("staging")
+
+group = "io.github.cppism"
+
+version = "4.33.2"
+if (!project.findProperty("isRelease"))
+    version += "-SNAPSHOT"
+
+application {
+}
+
+publishing {
+    publications {
+        release(MavenPublication) {
+            def releaseDir = layout.buildDirectory.dir("exe/main/release").get()
+            artifact("$releaseDir/stripped/${project.name}") {
+                def os = org.gradle.internal.os.OperatingSystem.current()
+                classifier = "${os.familyName}-x86_64"
+                extension = "exe"
+            }
+            pom {
+                name = "Protoc plugin for Kotlin serialization"
+                description = "The Protobuf compiler plugin for generating Kotlin serialization models"
+                url = "https://github.com/cppism/protoc-gen-kts"
+                licenses {
+                    license {
+                        name = "MIT License"
+                    }
+                }
+                developers {
+                    developer {
+                        name = "Kirill Obukhov"
+                    }
+                }
+                scm {
+                    url = "https://github.com/cppism/protoc-gen-kts"
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            url = stagingDir
+        }
+    }
+}
+
+jreleaser {
+    signing {
+        active = "ALWAYS"
+        verify = true
+    }
+    deploy {
+        maven {
+            mavenCentral {
+                sonatype {
+                    active = "ALWAYS"
+                    url = "https://central.sonatype.com/api/v1/publisher"
+                    stagingRepository(stagingDir.get().toString())
+                }
+            }
+        }
+    }
+}
+
+tasks.named("jreleaserDeploy") {
+    dependsOn("publishReleasePublicationToMavenRepository")
+}
+
+tasks.withType(CppCompile).configureEach {
+    compilerArgs.add("-std=gnu++20")
+}
+
+tasks.withType(LinkExecutable).configureEach {
+    linkerArgs.addAll(
+            "-lprotobuf",
+            "-lprotoc",
+
+            "-lutf8_range",
+
+            "-labsl_cord",
+            "-labsl_cordz_info",
+            "-labsl_cord_internal",
+            "-labsl_hash",
+            "-labsl_raw_hash_set",
+            "-labsl_log_internal_check_op",
+            "-labsl_log_internal_conditions",
+            "-labsl_log_internal_message",
+            "-labsl_log_internal_nullguard",
+            "-labsl_raw_logging_internal",
+            "-labsl_spinlock_wait",
+            "-labsl_status",
+            "-labsl_statusor",
+            "-labsl_strings",
+            "-labsl_str_format_internal",
+            "-labsl_synchronization",
+            "-labsl_throw_delegate",
+            "-labsl_time",
+
+            "-labsl_base",
+            "-labsl_city",
+            "-labsl_cordz_functions",
+            "-labsl_cordz_handle",
+            "-labsl_crc_cord_state",
+            "-labsl_examine_stack",
+            "-labsl_graphcycles_internal",
+            "-labsl_hashtablez_sampler",
+            "-labsl_int128",
+            "-labsl_kernel_timeout_internal",
+            "-labsl_leak_check",
+            "-labsl_log_globals",
+            "-labsl_log_internal_format",
+            "-labsl_log_internal_globals",
+            "-labsl_log_internal_log_sink_set",
+            "-labsl_log_internal_proto",
+            "-labsl_log_internal_structured_proto",
+            "-labsl_low_level_hash",
+            "-labsl_malloc_internal",
+            "-labsl_stacktrace",
+            "-labsl_strerror",
+            "-labsl_strings_internal",
+            "-labsl_symbolize",
+            "-labsl_time_zone",
+
+            "-labsl_crc32c",
+            "-labsl_debugging_internal",
+            "-labsl_demangle_internal",
+            "-labsl_exponential_biased",
+            "-labsl_log_sink",
+
+            "-labsl_crc_internal",
+            "-labsl_demangle_rust",
+
+            "-labsl_decode_rust_punycode",
+
+            "-labsl_utf8_for_code_point",
+    )
+}
