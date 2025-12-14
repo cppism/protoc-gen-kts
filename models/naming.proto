@@ -1,0 +1,14 @@
+edition = "2024";
+package kts.package_name;
+
+enum EnumerationName {
+  ENUM_VALUE_NAME = 0;
+}
+
+message MessageName {
+  int32 scalar_field_name = 1;
+  oneof one_of_field_name {
+    string iso_string_field = 2;
+    int64 linux_timestamp_field = 3;
+  }
+}

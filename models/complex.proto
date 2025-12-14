@@ -1,0 +1,24 @@
+edition = "2024";
+package kts.complex;
+
+enum Enumeration {
+  UNSPECIFIED = 0;
+  VALUE_ONE = 1;
+  VALUE_TWO = 2;
+}
+
+message Collections {
+  repeated int32 repeated_field = 1;
+  map<int32, string> map_field = 2;
+}
+
+message Message {
+  message NestedMessage {
+  }
+
+  NestedMessage nested = 1;
+  oneof message {
+    string plain_text = 2;
+    bytes encoded = 3;
+  }
+}

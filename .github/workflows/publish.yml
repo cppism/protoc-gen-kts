@@ -1,0 +1,82 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v5
+      - name: 'Read config variables'
+        shell: bash
+        run: |
+          source gradle.properties
+          echo "PBLV=$protobufLibraryVersion" >> $GITHUB_ENV
+          echo "PBLVP=$protobufLibraryVersionPatch" >> $GITHUB_ENV
+      - name: 'Download Protobuf sources'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: >
+          gh release download
+          --repo protocolbuffers/protobuf v$PBLV
+          --pattern protobuf-$PBLV.tar.gz
+          --output - | tar -xzf -
+      - run: |
+          ls .
+          mv protobuf-$PBLV protobuf
+      - name: 'Configuring Protobuf build'
+        shell: bash
+        run: |
+          cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -G Ninja \
+            -S protobuf \
+            -B protobuf/build
+      - name: 'Build Protobuf libraries'
+        run: cmake --build protobuf/build --verbose
+      - name: 'Install Protobuf libraries'
+        run: sudo cmake --install protobuf/build
+      - name: 'Build Kts plugin'
+        shell: bash
+        run: |
+          cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPROTOBUF_VERSION=$PBLV.$PBLVP \
+            -B build && cd $_
+          cmake --build .
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: kts-${{ runner.os }}
+          path: build/protoc-gen-kts-*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+  publish:
+    if: github.ref_name == 'master'
+    runs-on: ubuntu-latest
+    needs: [ build ]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v7
+        with:
+          path: build
+      - name: 'List artifacts'
+        run: tree build
+      - name: 'Publish to Maven'
+        env:
+          JRELEASER_MAVENCENTRAL_STAGE: 'UPLOAD'
+          JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
+          JRELEASER_GPG_SECRET_KEY: ${{ secrets.PGP_PRIVATE_KEY }}
+          JRELEASER_MAVENCENTRAL_SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          JRELEASER_MAVENCENTRAL_SONATYPE_TOKEN: ${{ secrets.SONATYPE_TOKEN }}
+        run: gradle jreleaserDeploy -PIsRelease=true

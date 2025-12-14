@@ -1,0 +1,107 @@
+plugins {
+    id "maven-publish"
+    id "org.jreleaser" version "1.+"
+}
+
+def isRelease = project.findProperty("IsRelease") ?: false
+def stagingDir = layout.buildDirectory.dir("staging").get()
+def artifactBasePath = layout.buildDirectory.file(project.name).get()
+
+group = productGroup
+version = "$protobufLanguageVersion.$protobufLibraryVersion"
+if (productVersionPatch != "0")
+    version += ".$productVersionPatch"
+if (!isRelease)
+    version += "-SNAPSHOT"
+
+publishing {
+    publications {
+        release(MavenPublication) {
+            if (isRelease) {
+                ["linux-x86_64"]
+                        .each { target ->
+                            artifact("$artifactBasePath-$target") {
+                                classifier = target
+                                extension = "exe"
+                            }
+                        }
+            } else {
+                artifact(artifactBasePath) {
+                    def os = org.gradle.internal.os.OperatingSystem.current()
+                    classifier = "${os.familyName}-x86_64"
+                    extension = "exe"
+                }
+            }
+            pom {
+                name = "Protoc plugin for Kotlin serialization"
+                description = "Protobuf compiler plugin for generating Kotlin serialization models"
+                url = "https://github.com/cppism/protoc-gen-kts"
+                licenses {
+                    license {
+                        name = "MIT"
+                    }
+                }
+                developers {
+                    developer {
+                        name = "Kirill Obukhov"
+                    }
+                }
+                scm {
+                    url = "https://github.com/cppism/protoc-gen-kts"
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            url = stagingDir
+        }
+    }
+}
+
+jreleaser {
+    signing {
+        active = "ALWAYS"
+        verify = true
+    }
+    deploy {
+        maven {
+            mavenCentral {
+                sonatype {
+                    active = "ALWAYS"
+                    url = "https://central.sonatype.com/api/v1/publisher"
+                    stagingRepository(stagingDir.toString())
+                }
+            }
+        }
+    }
+}
+
+tasks.register("clean", Delete) {
+    delete(layout.buildDirectory)
+}
+
+tasks.register("cmakeInit", Exec) {
+    group = "cmake"
+    commandLine(
+            "cmake",
+            "-B", layout.buildDirectory.asFile.get().path,
+            "-DCMAKE_BUILD_TYPE=${isRelease ? "Release" : "Debug"}",
+            "-DPROTOBUF_VERSION=$protobufLibraryVersion.$protobufLibraryVersionPatch"
+    )
+}
+
+tasks.register("cmakeBuild", Exec) {
+    group = "cmake"
+    workingDir = layout.buildDirectory
+    commandLine("cmake", "--build", ".")
+    dependsOn("cmakeInit")
+}
+
+tasks.named("publishReleasePublicationToMavenLocal") {
+    dependsOn("cmakeBuild")
+}
+
+tasks.named("jreleaserDeploy") {
+    dependsOn("publishReleasePublicationToMavenRepository")
+}
