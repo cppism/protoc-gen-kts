@@ -3,28 +3,33 @@ plugins {
     id "org.jreleaser" version "1.+"
 }
 
-def languageVersion = "4"
-def compilerVersion = "33.1"
-def isRelease = project.findProperty("isRelease") ?: false
+def isRelease = project.findProperty("IsRelease") ?: false
 def stagingDir = layout.buildDirectory.dir("staging").get()
+def artifactBasePath = layout.buildDirectory.file(project.name).get()
 
-group = "io.github.cppism"
-version = "$languageVersion.$compilerVersion"
+group = productGroup
+version = "$protobufLanguageVersion.$protobufLibraryVersion.$productVersionPatch"
 if (!isRelease)
     version += "-SNAPSHOT"
 
 publishing {
     publications {
         release(MavenPublication) {
-            layout.buildDirectory.asFileTree
-                    .matching {
-                        include("protoc-gen-kts-*")
-                    }
-                    .each {
-                        artifact(it.path) {
-                            extension = "exe"
+            if (isRelease) {
+                ["linux-x86_64, windows-x86_64, macos-x86_64"]
+                        .each { target ->
+                            artifact("$artifactBasePath-$target") {
+                                classifier = target
+                                extension = "exe"
+                            }
                         }
-                    }
+            } else {
+                artifact(artifactBasePath) {
+                    def os = org.gradle.internal.os.OperatingSystem.current()
+                    classifier = "${os.familyName}-x86_64"
+                    extension = "exe"
+                }
+            }
             pom {
                 name = "Protoc plugin for Kotlin serialization"
                 description = "The Protobuf compiler plugin for generating Kotlin serialization models"
@@ -70,29 +75,25 @@ jreleaser {
     }
 }
 
-tasks.register("clean", Exec) {
-    commandLine "rm", "-rf", layout.buildDirectory.asFile.get().path
+tasks.register("clean", Delete) {
+    delete(layout.buildDirectory)
 }
 
 tasks.register("cmakeInit", Exec) {
-    commandLine "cmake",
+    group = "cmake"
+    commandLine(
+            "cmake",
             "-B", layout.buildDirectory.asFile.get().path,
-            "-DCMAKE_BUILD_TYPE=Release",
-            "-DPROTOBUF_VERSION=$compilerVersion.0"
+            "-DCMAKE_BUILD_TYPE=${isRelease ? "Release" : "Debug"}",
+            "-DPROTOBUF_VERSION=$protobufLibraryVersion.$protobufLibraryVersionPatch"
+    )
 }
 
 tasks.register("cmakeBuild", Exec) {
-    workingDir layout.buildDirectory
-    commandLine "cmake", "--build", "."
+    group = "cmake"
+    workingDir = layout.buildDirectory
+    commandLine("cmake", "--build", ".")
     dependsOn("cmakeInit")
-}
-
-tasks.register("rebuild") {
-    dependsOn("clean", "cmakeInit", "cmakeBuild")
-}
-
-tasks.named("publishToMavenLocal") {
-    dependsOn("rebuild")
 }
 
 tasks.named("jreleaserDeploy") {

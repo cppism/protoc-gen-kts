@@ -1,0 +1,71 @@
+on:
+  push:
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: "Read config variables"
+        shell: bash
+        run: |
+          source gradle.properties
+          echo "PBLV=$protobufLibraryVersion" >> $GITHUB_ENV
+          echo "PBLVP=$protobufLibraryVersionPatch" >> $GITHUB_ENV
+      - name: "Install Protobuf static libraries"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release download \
+            --repo protocolbuffers/protobuf v$PBLV \
+            --pattern protobuf-$PBLV.tar.gz \
+            --output - | tar -xzf -
+          cmake \
+            -D CMAKE_BUILD_TYPE=Release \
+            -G Ninja \
+            -S protobuf-$PBLV \
+            -B protobuf-build && pushd $_
+          cmake --build .
+          sudo cmake --install .
+          popd
+      - name: "Build Kts plugin"
+        run: |
+          cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPROTOBUF_VERSION=$PBLV.$PBLVP \
+            -B build && cd $_
+          cmake --build .
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: kts-${{ runner.os }}
+          path: build/protoc-gen-kts-*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+  publish:
+    needs: [ build ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v7
+        with:
+          path: build
+      - name: "Publish to Maven"
+        env:
+          JRELEASER_MAVENCENTRAL_STAGE: "UPLOAD"
+          JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
+          JRELEASER_GPG_SECRET_KEY: ${{ secrets.PGP_PRIVATE_KEY }}
+          JRELEASER_MAVENCENTRAL_SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          JRELEASER_MAVENCENTRAL_SONATYPE_TOKEN: ${{ secrets.SONATYPE_TOKEN }}
+        run: |
+          tree .
+          gradle wrapper --gradle-version latest
+          ./gradlew jreleaserDeploy -PIsRelease=true

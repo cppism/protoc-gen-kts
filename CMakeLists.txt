@@ -19,7 +19,8 @@ find_package(Protobuf ${PROTOBUF_VERSION} CONFIG REQUIRED)
 
 add_executable(${PROJECT_NAME} src/Main.cc)
 set_target_properties(${PROJECT_NAME} PROPERTIES
-        OUTPUT_NAME "${PROJECT_NAME}-${PLATFORM}"
+        OUTPUT_NAME_DEBUG ${PROJECT_NAME}
+        OUTPUT_NAME_RELEASE "${PROJECT_NAME}-${PLATFORM}"
 )
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
 target_link_libraries(
