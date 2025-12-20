@@ -119,10 +119,8 @@ private:
         const std::unique_ptr<ZeroCopyOutputStream> stream(generatorContext->Open(filename));
         Printer printer(stream.get());
 
-        printer.PrintRaw("@file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)\n");
-
         if (!descriptor->package().empty())
-            printer.Print("package $name$\n", "name", descriptor->package());
+            printer.Print("package $package$\n", "package", descriptor->package());
 
         printer.PrintRaw(
             "import kotlinx.serialization.Serializable\n"
@@ -149,8 +147,8 @@ private:
     }
 
     static void printEnum(Printer &printer, const EnumDescriptor *descriptor) {
-        printer.Print("@Serializable enum class $name$ (\n",
-                      "name", descriptor->name());
+        printer.Print("@Serializable enum class $class$ (\n",
+                      "class", descriptor->name());
         printer.Indent();
         printer.Print("val value: Int,\n");
         printer.Outdent();
@@ -166,14 +164,14 @@ private:
     }
 
     static void printEnumValue(Printer &printer, const EnumValueDescriptor *descriptor) {
-        printer.Print(descriptor->name());
+        printer.PrintRaw(descriptor->name());
         printer.Print("($number$),\n", "number", std::to_string(descriptor->number()));
     }
 
     static void printMessage(Printer &printer, const Descriptor *descriptor) {
         printer.PrintRaw("@Serializable ");
         printer.PrintRaw(descriptor->field_count() ? "data class " : "class ");
-        printer.Print("$name$(\n", "name", descriptor->name());
+        printer.Print("$class$(\n", "class", descriptor->name());
 
         printer.Indent();
         std::vector<const OneofDescriptor *> oneOfDescriptors;
@@ -181,8 +179,8 @@ private:
             const FieldDescriptor *fieldDescriptor(descriptor->field(i));
             if (const OneofDescriptor *oneOfDescriptor(fieldDescriptor->containing_oneof()); oneOfDescriptor) {
                 printer.Print(
-                    "@ProtoOneOf val $name$: $className$ = $className$.$field$(),\n",
-                    "name", oneOfDescriptor->name(), "className", getOneOfName(oneOfDescriptor->name()),
+                    "@ProtoOneOf val $name$: $class$ = $class$.$field$(),\n",
+                    "name", oneOfDescriptor->name(), "class", getOneOfName(oneOfDescriptor->name()),
                     "field", toPascalCase(fieldDescriptor->camelcase_name())
                 );
                 oneOfDescriptors.push_back(oneOfDescriptor);
@@ -226,7 +224,7 @@ private:
         printer.PrintRaw("return true");
         printer.Indent();
         printFunctionBody(
-            printer, descriptor, " &&\n$field_name$.$func_name$(other.$field_name$)",
+            printer, descriptor, " &&\n$field$.$func$(other.$field$)",
             [](const FieldDescriptor::Type fieldType) -> std::string_view {
                 return fieldType == FieldDescriptor::TYPE_BYTES ? "contentEquals" : "equals";
             }
@@ -242,7 +240,7 @@ private:
         printer.Indent();
         printer.Print("var result = 0\n");
         printFunctionBody(
-            printer, descriptor, "result = 31 * result + $field_name$.$func_name$()\n",
+            printer, descriptor, "result = 31 * result + $field$.$func$()\n",
             [](const FieldDescriptor::Type fieldType) -> std::string_view {
                 return fieldType == FieldDescriptor::TYPE_BYTES ? "contentHashCode" : "hashCode";
             }
@@ -265,7 +263,7 @@ private:
                 functionName = getFunctionName(FieldDescriptor::TYPE_MESSAGE);
                 i += oneOfDescriptor->field_count() - 1;
             }
-            printer.Print(expressionTemplate, "field_name", fieldNname, "func_name", functionName);
+            printer.Print(expressionTemplate, "field", fieldNname, "func", functionName);
         }
     }
 
@@ -280,7 +278,7 @@ private:
             printer.Indent();
             printField(printer, fieldDescriptor, "value");
             printer.Outdent();
-            printer.Print(") : $name$\n", "name", typeName);
+            printer.Print(") : $type$\n", "type", typeName);
         }
         printer.Outdent();
         printer.Print("}\n");
@@ -294,9 +292,9 @@ private:
             "\")\n"
         );
         printer.Print(
-            "var $typeName$.$propertyName$: ",
-            "typeName", descriptor->containing_type()->full_name(),
-            "propertyName", descriptor->camelcase_name()
+            "var $type$.$property$: ",
+            "type", descriptor->containing_type()->full_name(),
+            "property", descriptor->camelcase_name()
         );
         printFieldType(printer, descriptor);
         printer.Print("\n");

@@ -14,13 +14,13 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v5
-      - name: "Read config variables"
+      - name: 'Read config variables'
         shell: bash
         run: |
           source gradle.properties
           echo "PBLV=$protobufLibraryVersion" >> $GITHUB_ENV
           echo "PBLVP=$protobufLibraryVersionPatch" >> $GITHUB_ENV
-      - name: "Install Protobuf static libraries"
+      - name: 'Install Protobuf static libraries'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -30,16 +30,15 @@ jobs:
             --pattern protobuf-$PBLV.tar.gz \
             --output - | tar -xzf -
           cmake \
-            -D CMAKE_BUILD_TYPE=Release \
-            -D CMAKE_C_COMPILER=clang \
-            -D CMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_BUILD_TYPE=Release \
+            -Dprotobuf_BUILD_TESTS=OFF
             -G Ninja \
             -S protobuf-$PBLV \
             -B protobuf-build && pushd $_
-          cmake --build .
+          cmake --build . --verbose
           sudo cmake --install .
           popd
-      - name: "Build Kts plugin"
+      - name: 'Build Kts plugin'
         run: |
           cmake \
             -DCMAKE_BUILD_TYPE=Release \
@@ -63,9 +62,9 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           path: build
-      - name: "Publish to Maven"
+      - name: 'Publish to Maven'
         env:
-          JRELEASER_MAVENCENTRAL_STAGE: "UPLOAD"
+          JRELEASER_MAVENCENTRAL_STAGE: 'UPLOAD'
           JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
           JRELEASER_GPG_SECRET_KEY: ${{ secrets.PGP_PRIVATE_KEY }}

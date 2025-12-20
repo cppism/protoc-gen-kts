@@ -32,7 +32,7 @@ publishing {
             }
             pom {
                 name = "Protoc plugin for Kotlin serialization"
-                description = "The Protobuf compiler plugin for generating Kotlin serialization models"
+                description = "Protobuf compiler plugin for generating Kotlin serialization models"
                 url = "https://github.com/cppism/protoc-gen-kts"
                 licenses {
                     license {

@@ -26,18 +26,12 @@ protobuf {
         artifact = libs.protobuf.protoc.get().toString()
     }
     plugins {
-        create("kts") {
-            artifact = libs.protobuf.gen.kts.get().toString()
-        }
+        create("kts").artifact = libs.protobuf.gen.kts.get().toString()
     }
     generateProtoTasks {
         ofSourceSet("main").forEach { task ->
-            task.builtins {
-                remove("java")
-            }
-            task.plugins {
-                create("kts")
-            }
+            task.builtins.clear()
+            task.plugins.create("kts")
         }
     }
 }
