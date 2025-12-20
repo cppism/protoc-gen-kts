@@ -16,7 +16,7 @@ publishing {
     publications {
         release(MavenPublication) {
             if (isRelease) {
-                ["linux-x86_64, windows-x86_64, macos-x86_64"]
+                ["linux-x86_64"]
                         .each { target ->
                             artifact("$artifactBasePath-$target") {
                                 classifier = target
