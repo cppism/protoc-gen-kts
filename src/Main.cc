@@ -171,7 +171,9 @@ private:
     }
 
     static void printMessage(Printer &printer, const Descriptor *descriptor) {
-        printer.Print("@Serializable class $name$(\n", "name", descriptor->name());
+        printer.PrintRaw("@Serializable ");
+        printer.PrintRaw(descriptor->field_count() ? "data class " : "class ");
+        printer.Print("$name$(\n", "name", descriptor->name());
 
         printer.Indent();
         std::vector<const OneofDescriptor *> oneOfDescriptors;
@@ -206,8 +208,65 @@ private:
         for (int i(0); i < descriptor->field_count(); ++i)
             if (const OneofDescriptor *oneOfDescriptor(descriptor->field(i)->containing_oneof()); oneOfDescriptor)
                 i += printOneOfType(printer, oneOfDescriptor) - 1;
+
+        printEqualsFunction(printer, descriptor);
+        printHashCodeFunction(printer, descriptor);
         printer.Outdent();
         printer.Print("}\n");
+    }
+
+    static void printEqualsFunction(Printer &printer, const Descriptor *descriptor) {
+        printer.Print("override fun equals(other: Any?): Boolean {\n");
+        printer.Indent();
+        printer.Print(
+            "if (this === other) return true\n"
+            "if (javaClass != other?.javaClass) return false\n"
+            "other as $name$\n", "name", descriptor->name()
+        );
+        printer.PrintRaw("return true");
+        printer.Indent();
+        printFunctionBody(
+            printer, descriptor, " &&\n$field_name$.$func_name$(other.$field_name$)",
+            [](const FieldDescriptor::Type fieldType) -> std::string_view {
+                return fieldType == FieldDescriptor::TYPE_BYTES ? "contentEquals" : "equals";
+            }
+        );
+        printer.Outdent();
+        printer.Print("\n");
+        printer.Outdent();
+        printer.Print("}\n");
+    }
+
+    static void printHashCodeFunction(Printer &printer, const Descriptor *descriptor) {
+        printer.Print("override fun hashCode(): Int {\n");
+        printer.Indent();
+        printer.Print("var result = 0\n");
+        printFunctionBody(
+            printer, descriptor, "result = 31 * result + $field_name$.$func_name$()\n",
+            [](const FieldDescriptor::Type fieldType) -> std::string_view {
+                return fieldType == FieldDescriptor::TYPE_BYTES ? "contentHashCode" : "hashCode";
+            }
+        );
+        printer.Print("return result\n");
+        printer.Outdent();
+        printer.Print("}\n");
+    }
+
+    static void printFunctionBody(
+        Printer &printer, const Descriptor *descriptor, const std::string_view expressionTemplate,
+        const std::function<std::string_view(FieldDescriptor::Type)> &getFunctionName
+    ) {
+        for (int i(0); i < descriptor->field_count(); ++i) {
+            const FieldDescriptor *fieldDescriptor(descriptor->field(i));
+            std::string_view fieldNname(fieldDescriptor->camelcase_name());
+            std::string_view functionName(getFunctionName(fieldDescriptor->type()));
+            if (const OneofDescriptor *oneOfDescriptor(fieldDescriptor->containing_oneof()); oneOfDescriptor) {
+                fieldNname = oneOfDescriptor->name();
+                functionName = getFunctionName(FieldDescriptor::TYPE_MESSAGE);
+                i += oneOfDescriptor->field_count() - 1;
+            }
+            printer.Print(expressionTemplate, "field_name", fieldNname, "func_name", functionName);
+        }
     }
 
     static int printOneOfType(Printer &printer, const OneofDescriptor *descriptor) {

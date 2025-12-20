@@ -96,6 +96,10 @@ tasks.register("cmakeBuild", Exec) {
     dependsOn("cmakeInit")
 }
 
+tasks.named("publishReleasePublicationToMavenLocal") {
+    dependsOn("cmakeBuild")
+}
+
 tasks.named("jreleaserDeploy") {
     dependsOn("publishReleasePublicationToMavenRepository")
 }
