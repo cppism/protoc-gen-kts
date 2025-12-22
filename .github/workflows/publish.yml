@@ -20,25 +20,32 @@ jobs:
           source gradle.properties
           echo "PBLV=$protobufLibraryVersion" >> $GITHUB_ENV
           echo "PBLVP=$protobufLibraryVersionPatch" >> $GITHUB_ENV
-      - name: 'Install Protobuf static libraries'
+      - name: 'Download Protobuf sources'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: |
-          gh release download \
-            --repo protocolbuffers/protobuf v$PBLV \
-            --pattern protobuf-$PBLV.tar.gz \
+        run: >
+          gh release download
+            --repo protocolbuffers/protobuf v$PBLV
+            --pattern protobuf-$PBLV.tar.gz
             --output - | tar -xzf -
+      - name: 'Build Protobuf static libraries'
+        shell: bash
+        run: |
           cmake \
             -DCMAKE_BUILD_TYPE=Release \
             -Dprotobuf_BUILD_TESTS=OFF \
             -G Ninja \
             -S protobuf-$PBLV \
-            -B protobuf-build && pushd $_
+            -B protobuf-build && cd $_
           cmake --build . --verbose
-          cmake --install .
-          popd
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            cmake --install .
+          else
+            sudo cmake --install .
+          fi
       - name: 'Build Kts plugin'
+        shell: bash
         run: |
           cmake \
             -DCMAKE_BUILD_TYPE=Release \
