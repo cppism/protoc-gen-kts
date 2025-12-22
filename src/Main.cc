@@ -180,7 +180,7 @@ private:
             if (const OneofDescriptor *oneOfDescriptor(fieldDescriptor->containing_oneof()); oneOfDescriptor) {
                 printer.Print(
                     "@ProtoOneOf val $name$: $class$ = $class$.$field$(),\n",
-                    "name", oneOfDescriptor->name(), "class", getOneOfName(oneOfDescriptor->name()),
+                    "name", toCamelCase(oneOfDescriptor->name()), "class", getOneOfName(oneOfDescriptor->name()),
                     "field", toPascalCase(fieldDescriptor->camelcase_name())
                 );
                 oneOfDescriptors.push_back(oneOfDescriptor);
@@ -256,14 +256,14 @@ private:
     ) {
         for (int i(0); i < descriptor->field_count(); ++i) {
             const FieldDescriptor *fieldDescriptor(descriptor->field(i));
-            std::string_view fieldNname(fieldDescriptor->camelcase_name());
+            std::string_view fieldName(fieldDescriptor->camelcase_name());
             std::string_view functionName(getFunctionName(fieldDescriptor->type()));
             if (const OneofDescriptor *oneOfDescriptor(fieldDescriptor->containing_oneof()); oneOfDescriptor) {
-                fieldNname = oneOfDescriptor->name();
+                fieldName = toCamelCase(oneOfDescriptor->name());
                 functionName = getFunctionName(FieldDescriptor::TYPE_MESSAGE);
                 i += oneOfDescriptor->field_count() - 1;
             }
-            printer.Print(expressionTemplate, "field", fieldNname, "func", functionName);
+            printer.Print(expressionTemplate, "field", fieldName, "func", functionName);
         }
     }
 
@@ -440,15 +440,23 @@ private:
         return "I" + toPascalCase(value);
     }
 
+    static std::string toCamelCase(const std::string_view &value) {
+        return toUpperAfterDashes(value, false);
+    }
+
     static std::string toPascalCase(const std::string_view &value) {
-        if (value.find('_') == std::string_view::npos) {
+        return toUpperAfterDashes(value, true);
+    }
+
+    static std::string toUpperAfterDashes(const std::string_view &value, bool capitalize) {
+        if (!value.contains('_')) {
             std::string result(value);
-            result[0] = static_cast<char>(std::toupper(result.at(0)));
+            if (capitalize)
+                result[0] = static_cast<char>(std::toupper(result.at(0)));
             return result;
         }
         std::string result;
         result.reserve(value.size());
-        bool capitalize = true;
         for (const char c: value) {
             if (c == '_') {
                 capitalize = true;
