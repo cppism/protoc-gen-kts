@@ -31,7 +31,7 @@ jobs:
             --output - | tar -xzf -
           cmake \
             -DCMAKE_BUILD_TYPE=Release \
-            -Dprotobuf_BUILD_TESTS=OFF
+            -Dprotobuf_BUILD_TESTS=OFF \
             -G Ninja \
             -S protobuf-$PBLV \
             -B protobuf-build && pushd $_
