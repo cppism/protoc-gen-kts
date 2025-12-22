@@ -26,9 +26,9 @@ jobs:
         shell: bash
         run: >
           gh release download
-            --repo protocolbuffers/protobuf v$PBLV
-            --pattern protobuf-$PBLV.tar.gz
-            --output - | tar -xzf -
+          --repo protocolbuffers/protobuf v$PBLV
+          --pattern protobuf-$PBLV.tar.gz
+          --output - | tar -xzf -
       - name: 'Build Protobuf static libraries'
         shell: bash
         run: |
