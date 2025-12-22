@@ -1,22 +1,21 @@
 package kts.complex
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.*
-import google.protobuf.*
 @Serializable enum class EnumerationName (
   val value: Int,
 ) {
   ENUM_VALUE_NAME(0),
 }
 @Serializable data class MessageName(
-  @ProtoNumber(1) val messageFieldName: Int = 0,
-  @ProtoOneOf val oneOfFieldName: IOneOfFieldName = IOneOfFieldName.LinuxTimestamp(),
+  @ProtoNumber(1) val scalarFieldName: Int = 0,
+  @ProtoOneOf val oneOfFieldName: IOneOfFieldName = IOneOfFieldName.IsoStringField(),
 ) {
   @Serializable sealed interface IOneOfFieldName {
-    @Serializable data class LinuxTimestamp (
-      @ProtoNumber(2) val value: Long = 0L,
+    @Serializable data class IsoStringField (
+      @ProtoNumber(2) val value: String = "",
     ) : IOneOfFieldName
-    @Serializable data class StructTimestamp (
-      @ProtoNumber(3) val value: Timestamp = Timestamp(),
+    @Serializable data class LinuxTimestampField (
+      @ProtoNumber(3) val value: Long = 0L,
     ) : IOneOfFieldName
   }
   override fun equals(other: Any?): Boolean {
@@ -24,12 +23,12 @@ import google.protobuf.*
     if (javaClass != other?.javaClass) return false
     other as MessageName
     return true &&
-      messageFieldName.equals(other.messageFieldName) &&
+      scalarFieldName.equals(other.scalarFieldName) &&
       oneOfFieldName.equals(other.oneOfFieldName)
   }
   override fun hashCode(): Int {
     var result = 0
-    result = 31 * result + messageFieldName.hashCode()
+    result = 31 * result + scalarFieldName.hashCode()
     result = 31 * result + oneOfFieldName.hashCode()
     return result
   }

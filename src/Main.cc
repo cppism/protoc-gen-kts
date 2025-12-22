@@ -170,7 +170,7 @@ private:
 
     static void printMessage(Printer &printer, const Descriptor *descriptor) {
         printer.PrintRaw("@Serializable ");
-        printer.PrintRaw(descriptor->field_count() ? "data class " : "class ");
+        printer.PrintRaw(descriptor->field_count() == 0 ? "class " : "data class ");
         printer.Print("$class$(\n", "class", descriptor->name());
 
         printer.Indent();
@@ -256,7 +256,7 @@ private:
     ) {
         for (int i(0); i < descriptor->field_count(); ++i) {
             const FieldDescriptor *fieldDescriptor(descriptor->field(i));
-            std::string_view fieldName(fieldDescriptor->camelcase_name());
+            std::string fieldName(fieldDescriptor->camelcase_name());
             std::string_view functionName(getFunctionName(fieldDescriptor->type()));
             if (const OneofDescriptor *oneOfDescriptor(fieldDescriptor->containing_oneof()); oneOfDescriptor) {
                 fieldName = toCamelCase(oneOfDescriptor->name());
@@ -441,14 +441,14 @@ private:
     }
 
     static std::string toCamelCase(const std::string_view &value) {
-        return toUpperAfterDashes(value, false);
+        return toUpperAfterUnderscores(value, false);
     }
 
     static std::string toPascalCase(const std::string_view &value) {
-        return toUpperAfterDashes(value, true);
+        return toUpperAfterUnderscores(value, true);
     }
 
-    static std::string toUpperAfterDashes(const std::string_view &value, bool capitalize) {
+    static std::string toUpperAfterUnderscores(const std::string_view &value, bool capitalize) {
         if (!value.contains('_')) {
             std::string result(value);
             if (capitalize)
