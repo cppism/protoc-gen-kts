@@ -29,29 +29,37 @@ jobs:
           --repo protocolbuffers/protobuf v$PBLV
           --pattern protobuf-$PBLV.tar.gz
           --output - | tar -xzf -
-      - run: |
+      - shell: bash
+        run: |
           ls .
           mv protobuf-$PBLV protobuf
-      - name: 'Configuring Protobuf build'
+      - name: 'Configure Protobuf build'
         shell: bash
-        run: |
-          cmake \
-            -DCMAKE_BUILD_TYPE=Release \
-            -G Ninja \
-            -S protobuf \
-            -B protobuf/build
-      - name: 'Build Protobuf libraries'
+        run: >
+          cmake
+          -DCMAKE_BUILD_TYPE=Release
+          -G Ninja
+          -S protobuf
+          -B protobuf/build
+      - name: 'Build Protobuf'
         run: cmake --build protobuf/build --verbose
-      - name: 'Install Protobuf libraries'
+
+      - name: 'Install Protobuf'
+        if: runner.os != 'Windows'
         run: sudo cmake --install protobuf/build
-      - name: 'Build Kts plugin'
+      - name: 'Install Protobuf'
+        if: runner.os == 'Windows'
+        run: cmake --install protobuf/build
+
+      - name: 'Configure Kts build'
         shell: bash
-        run: |
-          cmake \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DPROTOBUF_VERSION=$PBLV.$PBLVP \
-            -B build && cd $_
-          cmake --build .
+        run: >
+          cmake
+          -DCMAKE_BUILD_TYPE=Release
+          -DPROTOBUF_VERSION=$PBLV.$PBLVP
+          -B build
+      - name: 'Build Kts'
+        run: cmake --build build
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
@@ -61,7 +69,6 @@ jobs:
           compression-level: 0
           retention-days: 1
   publish:
-    if: github.ref_name == 'master'
     runs-on: ubuntu-latest
     needs: [ build ]
     steps:
@@ -72,6 +79,7 @@ jobs:
       - name: 'List artifacts'
         run: tree build
       - name: 'Publish to Maven'
+        if: github.ref_name == 'master'
         env:
           JRELEASER_MAVENCENTRAL_STAGE: 'UPLOAD'
           JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
