@@ -7,14 +7,16 @@ message Decimal {
 }
 
 message Integer {
-  int32 variable_signed_int32 = 1;
-  int64 variable_signed_int64 = 2;
-  uint32 variable_unsigned_int32 = 3;
-  uint64 variable_unsigned_int64 = 4;
-  fixed32 fixed_unsigned_int32 = 5;
-  fixed64 fixed_unsigned_int64 = 6;
-  sint32 zigzag_signed_int32 = 7;
-  sint64 zigzag_signed_int64 = 8;
+  int32 signed_variable_int32 = 1;
+  int64 signed_variable_int64 = 2;
+//  uint32 unsigned_variable_int32 = 3;
+//  uint64 unsigned_variable_int64 = 4;
+  sint32 signed_zigzag_int32 = 5;
+  sint64 signed_zigzag_int64 = 6;
+  fixed32 unsigned_fixed_int32 = 7;
+  fixed64 unsigned_fixed_int64 = 8;
+//  sfixed32 signed_fixed_int32 = 9;
+//  sfixed64 signed_fixed_int64 = 10;
 }
 
 message Logical {
