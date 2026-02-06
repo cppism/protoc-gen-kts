@@ -9,27 +9,25 @@ import kotlinx.serialization.protobuf.*
   VALUE_TWO(2),
 }
 @Serializable data class Collections(
-  @ProtoNumber(1) val repeatedField: List<Int> = emptyList(),
+  @ProtoNumber(1) @ProtoType(ProtoIntegerType.DEFAULT) val repeatedField: List<Int> = emptyList(),
   @ProtoNumber(2) val mapField: Map<Int, String> = emptyMap(),
 ) {
   override fun equals(other: Any?): Boolean {
     if (this === other) return true
     if (javaClass != other?.javaClass) return false
     other as Collections
-    return true &&
-      repeatedField.equals(other.repeatedField) &&
+    return repeatedField.equals(other.repeatedField) &&
       mapField.equals(other.mapField)
   }
   override fun hashCode(): Int {
-    var result = 0
-    result = 31 * result + repeatedField.hashCode()
+    var result = repeatedField.hashCode()
     result = 31 * result + mapField.hashCode()
     return result
   }
 }
 @Serializable data class Message(
   @ProtoNumber(1) val nested: NestedMessage = NestedMessage(),
-  @ProtoOneOf val message: IMessage = IMessage.PlainText(),
+  @ProtoOneOf val message: IMessage? = null,
 ) {
   @Serializable class NestedMessage(
   ) {
@@ -40,8 +38,7 @@ import kotlinx.serialization.protobuf.*
       return true
     }
     override fun hashCode(): Int {
-      var result = 0
-      return result
+      return 0
     }
   }
   @Serializable sealed interface IMessage {
@@ -56,14 +53,12 @@ import kotlinx.serialization.protobuf.*
     if (this === other) return true
     if (javaClass != other?.javaClass) return false
     other as Message
-    return true &&
-      nested.equals(other.nested) &&
-      message.equals(other.message)
+    return nested.equals(other.nested) &&
+      message?.equals(other.message) ?: (other.message === null)
   }
   override fun hashCode(): Int {
-    var result = 0
-    result = 31 * result + nested.hashCode()
-    result = 31 * result + message.hashCode()
+    var result = nested.hashCode()
+    result = 31 * result + (message?.hashCode() ?: 0)
     return result
   }
 }

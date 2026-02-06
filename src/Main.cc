@@ -31,7 +31,8 @@ class Iterator {
 
 public:
     Iterator(const TContainer *container, const GetItemFunc getItem, const int count) : _container(container),
-        _getItem(getItem), _count(count),
+        _getItem(getItem),
+        _count(count),
         _index(0) {
     }
 
@@ -179,7 +180,7 @@ private:
             const FieldDescriptor *fieldDescriptor(descriptor->field(i));
             if (const OneofDescriptor *oneOfDescriptor(fieldDescriptor->containing_oneof()); oneOfDescriptor) {
                 printer.Print(
-                    "@ProtoOneOf val $name$: $class$ = $class$.$field$(),\n",
+                    "@ProtoOneOf val $name$: $class$? = null,\n",
                     "name", toCamelCase(oneOfDescriptor->name()), "class", getOneOfName(oneOfDescriptor->name()),
                     "field", toPascalCase(fieldDescriptor->camelcase_name())
                 );
@@ -221,15 +222,20 @@ private:
             "if (javaClass != other?.javaClass) return false\n"
             "other as $name$\n", "name", descriptor->name()
         );
-        printer.PrintRaw("return true");
-        printer.Indent();
-        printFunctionBody(
-            printer, descriptor, " &&\n$field$.$func$(other.$field$)",
-            [](const FieldDescriptor::Type fieldType) -> std::string_view {
-                return fieldType == FieldDescriptor::TYPE_BYTES ? "contentEquals" : "equals";
-            }
-        );
-        printer.Outdent();
+        printer.PrintRaw("return ");
+        if (descriptor->field_count() == 0) {
+            printer.PrintRaw("true");
+        } else {
+            printer.Indent();
+            printFunctionBody(
+                printer, descriptor, " &&\n", "$field$.$func$(other.$field$)",
+                "$field$?.$func$(other.$field$) ?: (other.$field$ === null)",
+                [](const FieldDescriptor::Type fieldType) -> std::string_view {
+                    return fieldType == FieldDescriptor::TYPE_BYTES ? "contentEquals" : "equals";
+                }
+            );
+            printer.Outdent();
+        }
         printer.Print("\n");
         printer.Outdent();
         printer.Print("}\n");
@@ -238,32 +244,48 @@ private:
     static void printHashCodeFunction(Printer &printer, const Descriptor *descriptor) {
         printer.Print("override fun hashCode(): Int {\n");
         printer.Indent();
-        printer.Print("var result = 0\n");
-        printFunctionBody(
-            printer, descriptor, "result = 31 * result + $field$.$func$()\n",
-            [](const FieldDescriptor::Type fieldType) -> std::string_view {
-                return fieldType == FieldDescriptor::TYPE_BYTES ? "contentHashCode" : "hashCode";
-            }
-        );
-        printer.Print("return result\n");
+        if (descriptor->field_count() == 0) {
+            printer.Print("return 0\n");
+        } else {
+            const bool hasMultipleFields(descriptor->field_count() > 1);
+            printer.PrintRaw(hasMultipleFields ? "var result = " : "return ");
+            printFunctionBody(
+                printer, descriptor, "result = 31 * result + ", "$field$.$func$()\n",
+                "($field$?.$func$() ?: 0)\n",
+                [](const FieldDescriptor::Type fieldType) -> std::string_view {
+                    return fieldType == FieldDescriptor::TYPE_BYTES ? "contentHashCode" : "hashCode";
+                }
+            );
+            if (hasMultipleFields)
+                printer.Print("return result\n");
+        }
         printer.Outdent();
         printer.Print("}\n");
     }
 
     static void printFunctionBody(
-        Printer &printer, const Descriptor *descriptor, const std::string_view expressionTemplate,
+        Printer &printer, const Descriptor *descriptor, const std::string_view linePrefix,
+        const std::string_view expressionTemplate, const std::string_view nullableExpressionTemplate,
         const std::function<std::string_view(FieldDescriptor::Type)> &getFunctionName
     ) {
         for (int i(0); i < descriptor->field_count(); ++i) {
+            if (i != 0)
+                printer.Print(linePrefix);
             const FieldDescriptor *fieldDescriptor(descriptor->field(i));
+            bool isNullable(false);
             std::string fieldName(fieldDescriptor->camelcase_name());
             std::string_view functionName(getFunctionName(fieldDescriptor->type()));
             if (const OneofDescriptor *oneOfDescriptor(fieldDescriptor->containing_oneof()); oneOfDescriptor) {
+                isNullable = true;
                 fieldName = toCamelCase(oneOfDescriptor->name());
                 functionName = getFunctionName(FieldDescriptor::TYPE_MESSAGE);
                 i += oneOfDescriptor->field_count() - 1;
             }
-            printer.Print(expressionTemplate, "field", fieldName, "func", functionName);
+            if (isNullable) {
+                printer.Print(nullableExpressionTemplate, "field", fieldName, "func", functionName);
+            } else {
+                printer.Print(expressionTemplate, "field", fieldName, "func", functionName);
+            }
         }
     }
 
@@ -385,14 +407,23 @@ private:
 
     static void printTypeAnnotation(Printer &printer, const FieldDescriptor *descriptor) {
         switch (descriptor->type()) {
-            case FieldDescriptor::Type::TYPE_FIXED32:
-            case FieldDescriptor::Type::TYPE_FIXED64:
-                printer.PrintRaw("@ProtoType(ProtoIntegerType.FIXED) ");
+            case FieldDescriptor::Type::TYPE_INT32:
+            case FieldDescriptor::Type::TYPE_INT64:
+                printer.PrintRaw("@ProtoType(ProtoIntegerType.DEFAULT) ");
                 break;
             case FieldDescriptor::Type::TYPE_SINT32:
             case FieldDescriptor::Type::TYPE_SINT64:
                 printer.PrintRaw("@ProtoType(ProtoIntegerType.SIGNED) ");
                 break;
+            case FieldDescriptor::Type::TYPE_FIXED32:
+            case FieldDescriptor::Type::TYPE_FIXED64:
+                printer.PrintRaw("@ProtoType(ProtoIntegerType.FIXED) ");
+                break;
+            case FieldDescriptor::Type::TYPE_UINT32:
+            case FieldDescriptor::Type::TYPE_UINT64:
+            case FieldDescriptor::Type::TYPE_SFIXED32:
+            case FieldDescriptor::Type::TYPE_SFIXED64:
+                throw KtsException("Number types uintXX and sfixedXX are not supported by kotlinx-serialization.");
             default: {
             }
         }
