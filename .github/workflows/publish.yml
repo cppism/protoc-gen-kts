@@ -88,3 +88,7 @@ jobs:
           JRELEASER_MAVENCENTRAL_SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           JRELEASER_MAVENCENTRAL_SONATYPE_TOKEN: ${{ secrets.SONATYPE_TOKEN }}
         run: gradle jreleaserDeploy -PIsRelease=true
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          path: out/jreleaser/trace.log
