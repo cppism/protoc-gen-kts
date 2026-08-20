@@ -91,4 +91,5 @@ jobs:
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
+          name: failure
           path: build/jreleaser/trace.log
