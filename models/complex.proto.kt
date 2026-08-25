@@ -26,7 +26,7 @@ import kotlinx.serialization.protobuf.*
   }
 }
 @Serializable data class Message(
-  @ProtoNumber(1) val nested: NestedMessage = NestedMessage(),
+  @ProtoNumber(1) val nested: NestedMessage? = null,
   @ProtoOneOf val message: IMessage? = null,
 ) {
   @Serializable class NestedMessage(

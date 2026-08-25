@@ -342,13 +342,16 @@ private:
     }
 
     static void printFieldType(Printer &printer, const FieldDescriptor *descriptor) {
-        if (descriptor->is_repeated())
+        if (descriptor->is_repeated()) {
             if (descriptor->is_map())
                 printMapType(printer, descriptor);
             else
                 printListType(printer, descriptor);
-        else
+        } else {
             printRawType(printer, descriptor);
+            if (descriptor->type() == FieldDescriptor::TYPE_MESSAGE)
+                printer.PrintRaw("?");
+        }
     }
 
     static void printListType(Printer &printer, const FieldDescriptor *descriptor) {
@@ -468,8 +471,7 @@ private:
                 printer.PrintRaw("\"\"");
                 break;
             case FieldDescriptor::Type::TYPE_MESSAGE:
-                printer.PrintRaw(descriptor->message_type()->name());
-                printer.PrintRaw("()");
+                printer.PrintRaw("null");
                 break;
             case FieldDescriptor::Type::TYPE_BYTES:
                 printer.PrintRaw("ByteArray(0)");
