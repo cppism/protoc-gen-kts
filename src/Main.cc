@@ -342,13 +342,14 @@ private:
     }
 
     static void printFieldType(Printer &printer, const FieldDescriptor *descriptor) {
-        if (descriptor->is_repeated())
+        if (descriptor->is_repeated()) {
             if (descriptor->is_map())
                 printMapType(printer, descriptor);
             else
                 printListType(printer, descriptor);
-        else
+        } else {
             printRawType(printer, descriptor);
+        }
     }
 
     static void printListType(Printer &printer, const FieldDescriptor *descriptor) {
